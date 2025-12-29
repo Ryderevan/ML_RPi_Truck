@@ -10,6 +10,7 @@ The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'cont
 The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. 
 
 The topics and an estimated timeline is shown here, it should take about 4 hours to complete this activity:
+
 	1. Intro to problem (10)
 	
 	2. Background knowledge required(30)
