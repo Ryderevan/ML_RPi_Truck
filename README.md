@@ -3,7 +3,8 @@ Training an ML model to control a radio control truck with custom raspberrypi ba
 <img width="1600" height="1600" alt="image" src="https://github.com/user-attachments/assets/b98e383b-53ef-438e-bb69-ec668b7c850b" />
 
 The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. 
-<img width="213" height="343" alt="VehicleDrawing drawio" src="https://github.com/user-attachments/assets/5f5f6b78-3777-4342-b3d0-54a1f66c9078" />
+![VehicleDrawing](https://github.com/user-attachments/assets/aee1eedb-06cf-4c99-942b-2e0dc97f50e6)
+
 
 
 
