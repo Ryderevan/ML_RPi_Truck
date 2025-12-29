@@ -2,7 +2,8 @@
 Training an ML model to control a radio control truck with custom raspberrypi based hardware. The truck used as a demo is a 1:10 scale Losi Baja Rey, shown here: 
 <img width="1600" height="1600" alt="image" src="https://github.com/user-attachments/assets/b98e383b-53ef-438e-bb69-ec668b7c850b" />
 
-The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. 
+The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. If we define the angle of the vehicle as its heading, and we define a target heading as an arbitrary direction, we can calculate an angle theta, which is the difference between the two angles. This can also be defined as the vehicles error.
+
 ![VehicleDrawing](https://github.com/user-attachments/assets/aee1eedb-06cf-4c99-942b-2e0dc97f50e6)
 
 
