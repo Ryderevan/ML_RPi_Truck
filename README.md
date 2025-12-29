@@ -47,6 +47,6 @@ The topics and an estimated timeline is shown here, it should take about 4 hours
 		e. Would be nice to have a few bad models
 	10. Inference(30)
 		a. Put vehicles in Inference mode
-Test outside<img width="641" height="717" alt="image" src="https://github.com/user-attachments/assets/865dc07b-6bac-4716-92cd-6dd61d4c47b0" />
+	11. Test outside
 
 
