@@ -2,12 +2,16 @@
 Training an ML model to control a radio control truck with custom raspberrypi based hardware. The truck used as a demo is a 1:10 scale Losi Baja Rey, shown here: 
 <img width="1600" height="1600" alt="image" src="https://github.com/user-attachments/assets/b98e383b-53ef-438e-bb69-ec668b7c850b" />
 
+The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. 
+
 These hobby grade radio control vehicles are built in a modular fashion, and the signals being passed between the components can be intercepted and modified with a customer controller. A standard vehicle is made up of a receiver, a servo, an electronic speed controller(ESC), and a motor. The receiver takes input from the transmitter, then sends the signals to the servo to control steering, and the ESC to control the motor. In this project, receiver servo signal output is being input to the raspberry pi and overriding the servo control. The receivers ESC output is being monitored by the raspberry pi, but will not be used to override the signal being sent to the ESC.
 
 The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'controller' for the rest of this documentation. With its ability to output PWM, its small size, and its ability to connect via wifi and monitor from a remote computer, it works well in this scenario.
 <img width="2000" height="980" alt="image" src="https://github.com/user-attachments/assets/d98d5a27-f34d-4b4c-bb1c-ec86a1b1103e" />
 
-The proposed task is to keep the vehicle in a straight line. When the vehicle is perturbed by bumps in terrain or other inputs, it will most likely not end up driving in a straight line if no driver input is given. 
+Wiring diagram: 
+![BajaReyDiagrams-Wiring](https://github.com/user-attachments/assets/38872672-c637-428c-9f95-a17ad9e93b63)
+
 
 The topics and an estimated timeline is shown here, it should take about 4 hours to complete this activity:
 
