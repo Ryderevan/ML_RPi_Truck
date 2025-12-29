@@ -100,3 +100,6 @@ After training our model to learn m1, m2, and bias, we can compare the predicted
 <img width="1389" height="990" alt="image" src="https://github.com/user-attachments/assets/3c2aa6df-e12f-461b-9a99-f19bbf6ac8b5" />
 
 
+## Testing on a vehicle
+
+Once a model has been trained, we can then change vehicle modes to use the model to control the steering. Inference mode will use the model to infer the steering given the vehicle state, or will allow the user to override if steering is provided. This allowes the vehicle to be driven normally, but will let the ML model take over if no steering input is given.
