@@ -12,7 +12,7 @@ The proposed task is to keep the vehicle in a straight line. When the vehicle is
 
 
 ## Control System
-A traditional control system would sense the vehicle heading, calculate the error given the target, and then adjust the steering. It would do this repeatedly, ideally reducing the error to 0. The traditional control system of choice for this problem would likely be a PID controller, which as three components, Proportion(P), Integral(I), and Derivative(D). This can be implemented where the control input is calculated by:
+A traditional control system would sense the vehicle heading, calculate the error given the target, and then adjust the steering. It would do this repeatedly, ideally reducing the error to 0. The traditional control system of choice for this problem would likely be a PID controller, which has three components, Proportion(P), Integral(I), and Derivative(D). This can be implemented where the control input is calculated by:
 
 	u = Kp*Error + Ki*Error*t + Kd*Error_prime
 
@@ -76,9 +76,9 @@ The topics and an estimated timeline is shown here, it should take about 4 hours
 
 ## Hardware
 
-These hobby grade radio control vehicles are built in a modular fashion, and the signals being passed between the components can be intercepted and modified with a customer controller. A standard vehicle is made up of a receiver, a servo, an electronic speed controller(ESC), and a motor. The receiver takes input from the transmitter, then sends the signals to the servo to control steering, and the ESC to control the motor. In this project, receiver servo signal output is being input to the raspberry pi and overriding the servo control. The receivers ESC output is being monitored by the raspberry pi, but will not be used to override the signal being sent to the ESC.
+These hobby grade radio control vehicles are built in a modular fashion, and the signals being passed between the components can be intercepted and modified with a customer controller. A standard vehicle is made up of a receiver, a servo, an electronic speed controller (ESC), and a motor. The receiver takes input from the transmitter, then sends the signals to the servo to control steering, and the ESC to control the motor. In this project, receiver servo signal output is being input to the raspberry pi and overriding the servo control. The receivers ESC output is being monitored by the raspberry pi, but will not be used to override the signal being sent to the ESC.
 
-The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'controller' for the rest of this documentation. With its ability to output PWM, its small size, and its ability to connect via wifi and monitor from a remote computer, it works well in this scenario. To get the vehicles angle, we will get 
+The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'controller' for the rest of this documentation. With its ability to output Pulse Width Modulation (PWM), its small size, and its ability to connect via wifi and monitor from a remote computer, it works well in this scenario. To get the vehicles angle, we will get 
 <img width="2000" height="980" alt="image" src="https://github.com/user-attachments/assets/d98d5a27-f34d-4b4c-bb1c-ec86a1b1103e" />
 
 Wiring diagram: 
