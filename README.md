@@ -11,6 +11,7 @@ The proposed task is to keep the vehicle in a straight line. When the vehicle is
 
 The topics and an estimated timeline is shown here, it should take about 4 hours to complete this activity:
 	1. Intro to problem (10)
+	
 	2. Background knowledge required(30)
 		a. Pwm
 			i. Demo of pulse width changing on oscilloscope with steering moving
@@ -19,34 +20,43 @@ The topics and an estimated timeline is shown here, it should take about 4 hours
 		c. Linear regression
 			i. Concept-given a x value, predict y.
 			ii. Plot points and draw a line
+			
 	3. Go outside, do a demo of the goal solution, problem with vehicle sliding out (15 mins)
+	
 	4. Handout vehicles, introduce concept of teams(10)
 		a. Hardware(electrical)
 		b. Software
 		c. Data scientist
 		d. Driver
+		
 	5. Hardware and wiring (30)
 		a. Intro to task of wiring
 		b. Show diagram, walk through devices
 		c. Team connects wires
 		d. Check wires
+		
 	6. Software(45)
 		a. Intro to task of writing the software
 		b. Show software flow
 		c. Team writes software
 		d. Check software 
+		
 	7. Plug in batteries(10)
 		a. Check operation
+		
 	8. Driving instruction, students drive briefly(25)
 		a. Choose best drivers for training data
+		
 	9. Training(30)
 		a. Put vehicles in training mode
 		b. Collect data
 		c. Review results
 		d. Train model, review errors
 		e. Would be nice to have a few bad models
+		
 	10. Inference(30)
 		a. Put vehicles in Inference mode
+		
 	11. Test outside
 
 
