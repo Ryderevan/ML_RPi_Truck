@@ -86,7 +86,8 @@ The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'cont
 The wiring portion of the activity would have the students connect a few of the signal wires only, as there are too many connections on the vehicle to have them do it all. Connections could either be done with disconnect plugs, or with screw terminals. 
 
 Wiring diagram: 
-![BajaReyDiagrams-Wiring](https://github.com/user-attachments/assets/38872672-c637-428c-9f95-a17ad9e93b63)
+![BajaReyDiagrams-Wiring(1)](https://github.com/user-attachments/assets/cd12ffe9-1b68-4e78-9f1d-bfb791944ddb)
+
 
 
 ## Data and ML
