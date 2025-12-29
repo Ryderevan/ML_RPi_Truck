@@ -81,6 +81,10 @@ These hobby grade radio control vehicles are built in a modular fashion, and the
 The Raspberry Pi Zero W 2 will be used here and will be referred to as the 'controller' for the rest of this documentation. With its ability to output Pulse Width Modulation (PWM), its small size, and its ability to connect to a remote computer via wifi for monitoring, it works well in this scenario. To get the vehicles angle, we will use a LSM6DSOX IMU. The gyro within the IMU provides us with a rate of change of angle, which we can then use dead reckoning to get the angle by integrating  the rate of change over time. 
 <img width="2000" height="980" alt="image" src="https://github.com/user-attachments/assets/d98d5a27-f34d-4b4c-bb1c-ec86a1b1103e" />
 
+## Wiring
+
+The wiring portion of the activity would have the students connect a few of the signal wires only, as there are too many connections on the vehicle to have them do it all. Connections could either be done with disconnect plugs, or with screw terminals. 
+
 Wiring diagram: 
 ![BajaReyDiagrams-Wiring](https://github.com/user-attachments/assets/38872672-c637-428c-9f95-a17ad9e93b63)
 
