@@ -28,8 +28,8 @@ class vehicle:
         self._pi = None
         self._pwm_callbacks = {}  # pin -> callback handle dict
         
-        # Drive mode system: 0=pass-through (default), 1=PID, 2=data collection
-        self.drive_mode = 0  # default to pass-through steering
+        # Drive mode system: 1=pass-through, 2=data collection, 3=linear inference, 4=PID
+        self.drive_mode = 1  # default to pass-through steering
         
         # Data collection for drive mode 2 (offline RL)
         self.data_log = []  # list of (state, action, reward) tuples
@@ -39,15 +39,6 @@ class vehicle:
         self.throttle_threshold = 50.0  # us above neutral to trigger data collection
         self.run_counter = 0  # number of completed data collection runs
         
-        # DQN episode parameters for drive mode 3
-        self.episode_active = False
-        self.episode_start_time = 0
-        self.episode_duration = 5.0  # seconds
-        self.episode_buffer = []  # stores (state, action, reward) for current episode
-        self.episode_reward = 0.0
-        self.human_steering_detected = False
-        self.current_dqn_steering = 1500  # Track DQN's current steering position
-        
         # Control loop state tracking
         self.integral_error = 0.0  # PID integral term
         self.previous_steering_input = 1600.0  # Track steering input changes
@@ -56,7 +47,6 @@ class vehicle:
         self.brake_threshold = -50.0  # us below neutral for brake detection
         
         # External agent reference
-        self.dqn_agent = None
         self.linear_agent = None
         
         # Gyroscope bias offset (calibrate when stationary)
@@ -143,28 +133,13 @@ class vehicle:
         self._attitude_monitor_thread.start()
     
     def set_drive_mode(self, mode):
-        """# Set drive mode (0=pass-through steering, 1=PID, 2=data collection, 3=DQN online learning, 4=Linear Inference)"""
+        """Set drive mode (1=pass-through, 2=data collection, 3=linear inference, 4=PID)"""
         self.drive_mode = mode
         print(f"Drive mode set to {mode}")
         self.print_mode_info(mode)
 
-        # DQN setup for mode 3 (training DQN agent)
-        if mode == 3:
-            PRETRAINED_MODEL = 'dqn_trained_offline.npz'  # Set to None to train from scratch
-            self.dqn_agent = DQN_Agent.DQNAgent(state_dim=2, action_dim=21, lr=0.01, gamma=0.99, 
-                                        epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.1)
-            print("Training from scratch...")
-            
-            if PRETRAINED_MODEL is not None:
-                try:
-                    self.dqn_agent.load_model(PRETRAINED_MODEL)
-                    print(f"Loaded pre-trained model: {PRETRAINED_MODEL}")
-                    print(f"Starting epsilon: {self.dqn_agent.epsilon:.3f}")
-                except FileNotFoundError:
-                    print(f"Pre-trained model '{PRETRAINED_MODEL}' not found. Training from scratch.")
-
-        # Linear model setup for mode 4 (inference only for linear model)
-        if self.drive_mode == 4:
+        # Linear model setup for mode 3 (inference only for linear model)
+        if self.drive_mode == 3:
             PRETRAINED_MODEL = 'linear_model.pkl'
             self.linear_agent = Linear_Agent.LinearAgent(state_dim=2)
             
@@ -257,12 +232,12 @@ class vehicle:
         steering_deadband_us = self.steering_deadband_us  # +/- deadband around centerpoint
         
         # Steering error: deviation from servo centerpoint (in microseconds)
-        steering_error = steering_input_pw - servo_neutral
+        steering_delta = steering_input_pw - servo_neutral
         
         # Determine control mode based on whether human is steering
         # If steering input is near neutral, use PID heading hold
         # Otherwise, pass through receiver input (human override)
-        if abs(steering_error) < steering_deadband_us:
+        if abs(steering_delta) < steering_deadband_us:
             # Heading hold mode: PID based on heading error and thetaprime
             
             # PID terms (in microseconds offset from neutral)
@@ -309,15 +284,14 @@ class vehicle:
             throttle_pw = self.throttle_input_pulse_width
         return np.array([self.theta, self.thetaprime, steering_pw, throttle_pw])
     
-    def log_transition(self, state, action, reward):
-        """Log a state-action-reward transition for offline training.
+    def log_transition(self, state, action):
+        """Log a state-action transition for offline training.
         
         Args:
             state: state array [heading_error, heading_error_dot]
             action: steering servo pulse width command (microseconds) that was executed
-            reward: scalar reward value based on control objective
         """
-        self.data_log.append((state.copy(), action, reward))
+        self.data_log.append((state.copy(), action))
     
     def print_mode1_status(self, iteration, obs, heading_error, steering_command_us):
         """Print status for drive mode 1 (PID control).
@@ -332,14 +306,13 @@ class vehicle:
               f"thetaprime={obs[1]:7.2f}°/s | cmd={steering_command_us:7.0f}us | "
               f"steering_in={obs[2]:7.0f}us | throttle_in={obs[3]:7.0f}us")
     
-    def print_mode2_status(self, iteration, obs, steering_command_us, reward, current_time):
+    def print_mode2_status(self, iteration, obs, steering_command_us, current_time):
         """Print status for drive mode 2 (data collection).
         
         Args:
             iteration: current iteration number
             obs: observation array [theta, thetaprime, steering_pw, throttle_pw]
             steering_command_us: commanded steering pulse width in microseconds (or None if not logging)
-            reward: current reward value (or None if not logging)
             current_time: current time in seconds
         """
         if iteration % 10 != 0:  # Only print every 10th iteration
@@ -369,7 +342,12 @@ class vehicle:
         Args:
             mode: drive mode number (1, 2, 3, or 4)
         """
-        if mode == 2:
+        if mode == 1:
+            print("=== Drive Mode 1: Pass-Through ===")
+            print("Steering input passes directly to servo (no processing).")
+            print("Press Ctrl+C to exit.")
+            print()
+        elif mode == 2:
             print("=== Drive Mode 2: Data Collection (PID Driver) ===")
             print("PID controller drives the vehicle and logs demonstration data.")
             print(f"Data logging will activate when throttle exceeds {int(1500 + self.throttle_threshold)} us")
@@ -381,17 +359,15 @@ class vehicle:
             print("Press Ctrl+C to exit and save all data.")
             print()
         elif mode == 3:
-            print("=== Drive Mode 3: DQN Online Learning ===")
-            print("DQN agent learns steering control episode-by-episode.")
-            print(f"Episodes start when throttle exceeds {int(1500 + self.throttle_threshold)} us")
-            print(f"Each episode runs for {self.episode_duration} seconds")
-            print("WARNING: Human steering input will abort the current episode!")
-            print("Press Ctrl+C to exit and save model.")
-            print()
-        elif mode == 4:
-            print("=== Drive Mode 4: Linear Regression Inference ===")
+            print("=== Drive Mode 3: Linear Regression Inference ===")
             print("Linear model predicts steering from state: steering = bias + w1*theta + w2*theta_dot")
             print("Direct regression from demonstrations.")
+            print("Press Ctrl+C to exit.")
+            print()
+        elif mode == 4:
+            print("=== Drive Mode 4: PID Control ===")
+            print("PID heading-hold controller stabilizes vehicle heading.")
+            print(f"Data logging will activate when throttle exceeds {int(1500 + self.throttle_threshold)} us")
             print("Press Ctrl+C to exit.")
             print()
     
@@ -428,27 +404,13 @@ class vehicle:
                 self.reset_target_heading()
         
         # Mode-specific control logic
-        if self.drive_mode == 0:
+        if self.drive_mode == 1:
             # Pass-through mode
             steering_command_us = steering_input_pw  # Use receiver input directly
             self.action(steering_command_us)
             if iteration % 10 == 0:
                 print(f"i={iteration:3d} | theta={obs[0]:7.2f}° | thetaprime={obs[1]:7.2f}°/s | "
                       f"steering_in={obs[2]:7.0f}us | throttle_in={obs[3]:7.0f}us")
-        
-        elif self.drive_mode == 1:
-            # PID mode
-            theta = obs[0]
-            heading_error = theta - self.target_theta
-            while heading_error > 180:
-                heading_error -= 360
-            while heading_error < -180:
-                heading_error += 360
-            self.integral_error += heading_error * dt
-            
-            steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
-            self.action(steering_command_us)
-            self.print_mode1_status(iteration, obs, heading_error, steering_command_us)
         
         elif self.drive_mode == 2:
             # Data collection mode
@@ -464,7 +426,7 @@ class vehicle:
                 elapsed_time = (iteration * dt) - self.data_collection_start_time
                 if elapsed_time >= self.data_collection_duration:
                     self.data_collection_active = False
-                    filename = 'pid_demonstrations.npz'
+                    filename = 'demonstrations.npz'
                     self.save_data_log(filename)
                     self.print_data_collection_complete(filename)
             
@@ -485,9 +447,8 @@ class vehicle:
                 # State is [heading_error, heading_error_dot] not absolute values
                 state = np.array([heading_error, obs[1]])  # error and error_dot (thetaprime)
                 action = steering_command_us
-                reward = self.compute_reward(obs)
-                self.log_transition(state, action, reward)
-                self.print_mode2_status(iteration, obs, steering_command_us, reward, iteration * dt)
+                self.log_transition(state, action)
+                self.print_mode2_status(iteration, obs, steering_command_us, None, iteration * dt)
             else:
                 # Pass-through when not collecting
                 steering_command_us = steering_input_pw
@@ -495,137 +456,9 @@ class vehicle:
                 self.print_mode2_status(iteration, obs, None, None, iteration * dt)
         
         elif self.drive_mode == 3:
-            # DQN online learning mode
-            if self.dqn_agent is None:
-                print("ERROR: DQN agent not set! Call vehicle.dqn_agent = your_agent before running mode 3")
-                return
-            
-            # Check for human steering interference
-            if self.episode_active and abs(current_steering_error) >= self.steering_deadband_us:
-                print(f"\n>>> Episode ABORTED: Human steering detected at {iteration * dt:.2f}s")
-                self.episode_active = False
-                self.human_steering_detected = True
-                self.episode_buffer = []
-                self.episode_reward = 0.0
-            
-            # Check for brake input (early termination)
-            if self.episode_active and (throttle_input_pw - self.servo_neutral) < self.brake_threshold:
-                elapsed_time = (iteration * dt) - self.episode_start_time
-                print(f"\n>>> Episode {self.dqn_agent.episode_count + 1} TERMINATED by brake at {elapsed_time:.2f}s")
-                print(f"    Total reward: {self.episode_reward:.2f} (early termination)")
-                
-                for idx, (state, action, rew) in enumerate(self.episode_buffer):
-                    if idx < len(self.episode_buffer) - 1:
-                        next_state = self.episode_buffer[idx + 1][0]
-                        done = False
-                    else:
-                        next_state = obs[:2]
-                        done = True
-                    self.dqn_agent.store_transition(state, action, rew, next_state, done)
-                
-                train_losses = []
-                for _ in range(10):
-                    loss = self.dqn_agent.train_step()
-                    if loss is not None:
-                        train_losses.append(loss)
-                
-                avg_loss = np.mean(train_losses) if len(train_losses) > 0 else 0.0
-                self.dqn_agent.end_episode(self.episode_reward)
-                
-                stats = self.dqn_agent.get_stats()
-                print(f"    Avg loss: {avg_loss:.4f} | Epsilon: {stats['epsilon']:.3f}")
-                print(f"    Avg reward (last 10 eps): {stats['avg_reward_last_10']:.2f}\n")
-                
-                self.episode_active = False
-                self.episode_buffer = []
-                self.episode_reward = 0.0
-                
-                if self.dqn_agent.episode_count % 10 == 0:
-                    filename = f'dqn_model_ep{self.dqn_agent.episode_count}.npz'
-                    self.dqn_agent.save_model(filename)
-            
-            # Check if we should start a new episode
-            if not self.episode_active and (throttle_input_pw - self.servo_neutral) > self.throttle_threshold:
-                self.episode_active = True
-                self.episode_start_time = iteration * dt
-                self.episode_buffer = []
-                self.episode_reward = 0.0
-                self.human_steering_detected = False
-                self.current_dqn_steering = 1500
-                self.reset_target_heading()
-                print(f"\n>>> Episode {self.dqn_agent.episode_count + 1} STARTED (throttle={throttle_input_pw:.0f}us)")
-            
-            # Episode logic
-            if self.episode_active:
-                elapsed_time = (iteration * dt) - self.episode_start_time
-                dqn_state = obs[:2]
-                
-                action_idx = self.dqn_agent.select_action(dqn_state, training=True)
-                steering_command_us = self.dqn_agent.get_steering_command(action_idx)
-                self.current_dqn_steering = steering_command_us
-                
-                self.action(steering_command_us)
-                
-                reward = self.compute_reward(obs)
-                self.episode_reward += reward
-                self.episode_buffer.append((dqn_state.copy(), action_idx, reward))
-                
-                if elapsed_time >= self.episode_duration:
-                    print(f"\n>>> Episode {self.dqn_agent.episode_count + 1} COMPLETE")
-                    print(f"    Duration: {elapsed_time:.2f}s | Total reward: {self.episode_reward:.2f}")
-                    
-                    for idx, (state, action, rew) in enumerate(self.episode_buffer):
-                        if idx < len(self.episode_buffer) - 1:
-                            next_state = self.episode_buffer[idx + 1][0]
-                            done = False
-                        else:
-                            next_state = obs[:2]
-                            done = True
-                        self.dqn_agent.store_transition(state, action, rew, next_state, done)
-                    
-                    train_losses = []
-                    for _ in range(10):
-                        loss = self.dqn_agent.train_step()
-                        if loss is not None:
-                            train_losses.append(loss)
-                    
-                    avg_loss = np.mean(train_losses) if len(train_losses) > 0 else 0.0
-                    self.dqn_agent.end_episode(self.episode_reward)
-                    
-                    stats = self.dqn_agent.get_stats()
-                    print(f"    Avg loss: {avg_loss:.4f} | Epsilon: {stats['epsilon']:.3f}")
-                    print(f"    Avg reward (last 10 eps): {stats['avg_reward_last_10']:.2f}\n")
-                    
-                    self.episode_active = False
-                    self.episode_buffer = []
-                    self.episode_reward = 0.0
-                    
-                    if self.dqn_agent.episode_count % 10 == 0:
-                        filename = f'dqn_model_ep{self.dqn_agent.episode_count}.npz'
-                        self.dqn_agent.save_model(filename)
-                
-                if iteration % 10 == 0:
-                    remaining = self.episode_duration - elapsed_time
-                    print(f"i={iteration:5d} | [EPISODE {self.dqn_agent.episode_count + 1}] {remaining:.1f}s left | "
-                          f"theta={obs[0]:7.2f}° | action={action_idx} (steering={steering_command_us:.0f}us) | "
-                          f"reward={reward:.3f} | ep_reward={self.episode_reward:.2f}")
-            else:
-                if not self.human_steering_detected:
-                    steering_command_us = 1500.0  # Neutral
-                    self.action(steering_command_us)
-                else:
-                    steering_command_us = steering_input_pw  # Pass-through
-                    self.action(steering_command_us)
-                
-                if iteration % 10 == 0:
-                    stats = self.dqn_agent.get_stats()
-                    print(f"i={iteration:5d} | [waiting] Episodes: {stats['episode_count']} | "
-                          f"theta={obs[0]:7.2f}° | steering={obs[2]:7.0f}us | throttle={obs[3]:7.0f}us")
-        
-        elif self.drive_mode == 4:
             # Linear regression inference mode (using pretrained model)
             if self.linear_agent is None:
-                print("ERROR: Linear agent not set! Call vehicle.linear_agent = your_agent before running mode 4")
+                print("ERROR: Linear agent not set! Call vehicle.linear_agent = your_agent before running mode 3")
                 return
             
             # Initialize target heading on first iteration
@@ -669,73 +502,35 @@ class vehicle:
             # Execute the action
             self.action(steering_command_us)
         
+        elif self.drive_mode == 4:
+            # PID mode
+            theta = obs[0]
+            heading_error = theta - self.target_theta
+            while heading_error > 180:
+                heading_error -= 360
+            while heading_error < -180:
+                heading_error += 360
+            self.integral_error += heading_error * dt
+            
+            steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
+            self.action(steering_command_us)
+            self.print_mode1_status(iteration, obs, heading_error, steering_command_us)
+        
         self.previous_steering_input = steering_input_pw
-    
-    def compute_reward(self, obs):
-        """Compute reward based on how well the vehicle maintains target heading.
-        
-        Args:
-            obs: observation array [theta, thetaprime, steering_input_pw, throttle_input_pw]
-        
-        Returns:
-            reward: scalar reward value
-                - Higher reward for staying close to target heading
-                - Penalty for large heading errors
-                - Penalty for high heading rates (instability)
-        """
-        theta = obs[0]  # current heading
-        theta_dot = obs[1]  # heading rate
-        
-        # Heading error from target (handle wraparound for compass headings)
-        heading_error = theta - self.target_theta
-        while heading_error > 180:
-            heading_error -= 360
-        while heading_error < -180:
-            heading_error += 360
-        
-        # Reward structure: HEAVILY FAVOR POSITIVE REWARDS
-        # Use exponential rewards for good behavior, minimal penalties
-        
-        # Base reward for every timestep (encourages longer episodes)
-        base_reward = 2.0
-        
-        # 1. Exponential reward for being close to target
-        # This gives large positive rewards for small errors
-        abs_error = abs(heading_error)
-        if abs_error < 15.0:
-            # Exponential decay: perfect alignment gets +5, 15° gets ~0
-            heading_reward = 5.0 * np.exp(-abs_error / 5.0)
-        else:
-            # Small penalty for large errors (not exponential)
-            heading_reward = -0.1 * abs_error
-        
-        # 2. Convergence reward: reward for reducing error magnitude (fast correction)
-        # Positive if error is getting smaller, negative if growing
-        error_change = abs(self.prev_heading_error) - abs_error
-        convergence_reward = 2.0 * error_change  # Scale factor of 2.0
-        
-        # Update previous error for next step
-        self.prev_heading_error = heading_error
-        
-        # Total reward (heavily positive-biased)
-        reward = base_reward + heading_reward + convergence_reward
-        
-        return reward
     
     def save_data_log(self, filename='rl_data.npz'):
         """Save collected data to file for offline training.
         
-        Saves as numpy arrays: states [heading_error, error_dot], actions, rewards
+        Saves as numpy arrays: states [heading_error, error_dot], actions
         """
         if len(self.data_log) == 0:
             print("No data to save")
             return
         
-        states = np.array([s for s, a, r in self.data_log])
-        actions = np.array([a for s, a, r in self.data_log])
-        rewards = np.array([r for s, a, r in self.data_log])
+        states = np.array([s for s, a in self.data_log])
+        actions = np.array([a for s, a in self.data_log])
         
-        np.savez(filename, states=states, actions=actions, rewards=rewards)
+        np.savez(filename, states=states, actions=actions)
         print(f"Saved {len(self.data_log)} transitions to {filename}")
     
     def clear_data_log(self):
@@ -821,38 +616,25 @@ class vehicle:
             print(f"start_pwm_monitor on pin {pin}: callback registration failed: {e}")
             return False
 
-    #def stop_pwm_monitor(self, pin):
-    #    """Stop the PWM monitor on a specific pin."""
-    #    if pin in self._pwm_callbacks:
-    #        try:
-    #            self._pwm_callbacks[pin].cancel()
-    #        except Exception:
-    #            pass
-    #        del self._pwm_callbacks[pin]
-
     def shutdown(self):
         """Shutdown the vehicle, stop PWM and pigpio connection."""
-        if self.drive_mode == 2:
+        if self.drive_mode == 1:
+            print("Pass-through mode terminated")
+        
+        elif self.drive_mode == 2:
             print(f"Total runs completed: {self.run_counter}")
             
             # Save all accumulated data
             if len(self.data_log) > 0:
-                filename = 'pid_demonstrations.npz'
+                filename = 'demonstrations.npz'
                 self.save_data_log(filename)
                 print(f"All demonstration data saved to {filename} ({len(self.data_log)} transitions)")
         
         elif self.drive_mode == 3:
-            print(f"Total episodes completed: {self.dqn_agent.episode_count}")
-            stats = self.dqn_agent.get_stats()
-            print(f"Final epsilon: {stats['epsilon']:.3f}")
-            print(f"Average reward (last 10 episodes): {stats['avg_reward_last_10']:.2f}")
-            
-            # Save final model
-            filename = f'dqn_model_final_ep{self.dqn_agent.episode_count}.npz'
-            self.dqn_agent.save_model(filename)
+            print("Linear inference mode terminated")
         
         elif self.drive_mode == 4:
-            print("Linear inference mode terminated")
+            print("PID control mode terminated")
 
         try:
             self.pwm.stop()

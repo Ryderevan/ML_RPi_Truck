@@ -1,6 +1,5 @@
 #Import classes, vehicle class is for all vehicle driving functions, time is for loop timing
 from time import sleep
-import sys
 import Vehicle
 
 #Set input pins
