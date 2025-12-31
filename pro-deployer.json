@@ -1,0 +1,33 @@
+{
+	"enableStatusBarItem": true,
+	"enableQuickPick": true,
+	"uploadOnSave": true,
+	"autoDelete": true,
+	"checkGitignore": false,
+	"activeTargets": [
+		"rpi"
+	],
+	"concurrency": 5,
+	"ignore": [
+		".git/**/*",
+		".vscode/**/*",
+		"PIDWithExcitation.ipynb",
+		"Cartpole.ipynb",
+		"BehaviorCloning.ipynb",
+		"BajaRey.ipynb"
+	],
+	"targets": [
+		{
+			"name": "rpi",
+			"type": "sftp",
+			"host": "192.168.0.53",
+			"port": 22,
+			"user": "bajarey2",
+			"password": "bajarey2",
+			"dir": "/home/bajarey2/BajaRey/lib/python3.13/site-packages/truck",
+			"baseDir": "/",
+			"privateKey": null,
+			"passphrase": null
+		}
+	]
+}
