@@ -50,8 +50,8 @@ class vehicle:
         
         # Control loop state tracking
         self.integral_error = 0.0  # PID integral term
-        self.previous_steering_input = 1500.0  # Track steering input changes
-        self.servo_neutral = 1555.0  # Servo centerpoint (adjust if servo is misaligned; default 1500)
+        self.previous_steering_input = 1600.0  # Track steering input changes
+        self.servo_neutral = 1600.0  # Servo centerpoint (adjust if servo is misaligned; default 1500)
         self.steering_deadband_us = 50.0  # +/- deadband around servo centerpoint
         self.brake_threshold = -50.0  # us below neutral for brake detection
         

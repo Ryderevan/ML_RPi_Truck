@@ -1,6 +1,7 @@
 #Import classes, vehicle class is for all vehicle driving functions, time is for loop timing
 from time import sleep
-import Vehicle.Vehicle as Vehicle
+import sys
+import Vehicle
 
 #Set input pins
 throttle_pin = 23
@@ -29,6 +30,7 @@ try:
         # Increment iteration counter
         i += 1
         sleep(dt)
+
 
 #Break loop if Ctrl+C is pressed
 except KeyboardInterrupt:
