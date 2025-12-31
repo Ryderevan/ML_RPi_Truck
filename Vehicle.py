@@ -2,10 +2,10 @@ import numpy as np
 import threading
 import time
 import smbus2
-import Vehicle.Linear_Agent as Linear_Agent
-import Vehicle.DQN_Agent as DQN_Agent
+import Linear_Agent as Linear_Agent
+#import DQN_Agent as DQN_Agent
 import pigpio
-
+#Testtest
 
 class vehicle:
     def __init__(self, throttle_pin, steering_pin, servo_pin, modeswitch_pin):
