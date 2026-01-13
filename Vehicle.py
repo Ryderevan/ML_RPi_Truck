@@ -3,19 +3,17 @@ import threading
 import time
 import smbus2
 import Linear_Agent as Linear_Agent
-#import DQN_Agent as DQN_Agent
 import pigpio
 #Testtest
 
 class vehicle:
-    def __init__(self, throttle_pin, steering_pin, servo_pin, modeswitch_pin):
+    def __init__(self, throttle_pin, steering_pin, servo_pin):
         self.theta = 0 #Vehicle angle (degrees)
         self.thetaprime = 0 #Vehicle angular velocity (degrees/second)
         self.target_theta = 0  # Target heading for PID heading-hold mode; can be reset when steering direction changes
         self.timestamp = 0 
         self.throttle_input_pulse_width = 0  # Pin 23: throttle input (microseconds)
         self.steering_input_pulse_width = 0  # Pin 24: steering input (microseconds)
-        self.modeswitch_input_pulse_width = 0
         self.prev_heading_error = 0.0  # Track previous error for convergence reward
         
         # Lock for protecting reads/writes to shared state updated by threads
@@ -31,8 +29,8 @@ class vehicle:
         # Drive mode system: 1=pass-through, 2=data collection, 3=linear inference, 4=PID
         self.drive_mode = 1  # default to pass-through steering
         
-        # Data collection for drive mode 2 (offline RL)
-        self.data_log = []  # list of (state, action, reward) tuples
+        # Data collection for drive mode 1)
+        self.data_log = []  # list of (state, action) tuples
         self.data_collection_active = False
         self.data_collection_start_time = 0
         self.data_collection_duration = 5.0  # seconds
@@ -59,7 +57,6 @@ class vehicle:
                 if self._pi.connected:
                     self.start_pwm_monitor(pin=throttle_pin, smoothing=0.0)  # throttle
                     self.start_pwm_monitor(pin=steering_pin, smoothing=0.0)  # steering
-                    self.start_pwm_monitor(pin=modeswitch_pin, smoothing=0.0)  # mode switch
                 else:
                     print("Warning: could not connect to pigpiod; PWM monitoring disabled")
                     self._pi = None
@@ -189,7 +186,7 @@ class vehicle:
         else:
             print(f"_write_servo_pulsewidth: pigpio not connected")
     
-    def PID_action(self, obs, target_theta, integral_error, Kp=6, Kd=1, Ki=0, debug=False):
+    def PID_action(self, obs, target_theta, integral_error, Kp=10, Kd=1, Ki=0, debug=False):
         """PID steering controller based on gyro heading feedback.
         
         When steering input is centered (within deadband), use the vehicle's theta (heading error)
@@ -293,8 +290,8 @@ class vehicle:
         """
         self.data_log.append((state.copy(), action))
     
-    def print_mode1_status(self, iteration, obs, heading_error, steering_command_us):
-        """Print status for drive mode 1 (PID control).
+    def print_mode4_status(self, iteration, obs, heading_error, steering_command_us):
+        """Print status for drive mode 4 (PID control).
         
         Args:
             iteration: current iteration number
@@ -322,8 +319,8 @@ class vehicle:
             elapsed = current_time - self.data_collection_start_time
             remaining = self.data_collection_duration - elapsed
             print(f"i={iteration:5d} | [LOGGING] {remaining:.1f}s left | theta={obs[0]:7.2f}° | "
-                  f"PID_cmd={steering_command_us:.0f}us | throttle={obs[3]:7.0f}us | "
-                  f"reward={reward:7.4f} | samples={len(self.data_log)}")
+                  f"steering_cmd_us={steering_command_us:.0f}us | throttle={obs[3]:7.0f}us | "
+                  f"samples={len(self.data_log)}")
         else:
             print(f"i={iteration:5d} | [waiting] | theta={obs[0]:7.2f}° | "
                   f"steering={obs[2]:7.0f}us | throttle={obs[3]:7.0f}us")
@@ -392,16 +389,18 @@ class vehicle:
         current_steering_error = steering_input_pw - self.servo_neutral
         previous_steering_error = self.previous_steering_input - self.servo_neutral
         
-        # Check if steering returned to neutral (was active, now neutral)
-        if abs(previous_steering_error) >= self.steering_deadband_us and abs(current_steering_error) < self.steering_deadband_us:
-            self.integral_error = 0.0
-            self.reset_target_heading()
-        
-        # Check if steering direction changed
-        elif abs(current_steering_error) >= self.steering_deadband_us and abs(previous_steering_error) >= self.steering_deadband_us:
-            if (current_steering_error * previous_steering_error) < 0:
+        # Skip heading resets in mode 2 (data collection) to maintain target heading throughout
+        if self.drive_mode != 2:
+            # Check if steering returned to neutral (was active, now neutral)
+            if abs(previous_steering_error) >= self.steering_deadband_us and abs(current_steering_error) < self.steering_deadband_us:
                 self.integral_error = 0.0
                 self.reset_target_heading()
+            
+            # Check if steering direction changed
+            elif abs(current_steering_error) >= self.steering_deadband_us and abs(previous_steering_error) >= self.steering_deadband_us:
+                if (current_steering_error * previous_steering_error) < 0:
+                    self.integral_error = 0.0
+                    self.reset_target_heading()
         
         # Mode-specific control logic
         if self.drive_mode == 1:
@@ -424,14 +423,23 @@ class vehicle:
             
             if self.data_collection_active:
                 elapsed_time = (iteration * dt) - self.data_collection_start_time
-                if elapsed_time >= self.data_collection_duration:
+                # End data collection if 5 seconds reached OR brakes are hit
+                brake_detected = (throttle_input_pw - self.servo_neutral) < self.brake_threshold
+                time_limit_reached = elapsed_time >= self.data_collection_duration
+                
+                if brake_detected or time_limit_reached:
                     self.data_collection_active = False
+                    reason = "brakes detected" if brake_detected else "5 second limit reached"
                     filename = 'demonstrations.npz'
                     self.save_data_log(filename)
-                    self.print_data_collection_complete(filename)
+                    print(f">>> Run {self.run_counter}: Data collection ended ({reason}) | Total samples: {len(self.data_log)} saved to {filename}\n")
+                    self.run_counter += 1
             
             if self.data_collection_active:
-                steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
+                # Use human steering input directly (no PID)
+                steering_command_us = steering_input_pw
+                
+                # Calculate heading error for state logging
                 heading_error = obs[0] - self.target_theta
                 # Normalize heading error to -180 to +180
                 while heading_error > 180:
@@ -439,21 +447,18 @@ class vehicle:
                 while heading_error < -180:
                     heading_error += 360
                 
-                self.integral_error += heading_error * dt
-                self.integral_error = max(-50.0, min(50.0, self.integral_error))
-                
                 self.action(steering_command_us)
                 
                 # State is [heading_error, heading_error_dot] not absolute values
                 state = np.array([heading_error, obs[1]])  # error and error_dot (thetaprime)
                 action = steering_command_us
                 self.log_transition(state, action)
-                self.print_mode2_status(iteration, obs, steering_command_us, None, iteration * dt)
+                self.print_mode2_status(iteration, obs, steering_command_us, iteration * dt)
             else:
                 # Pass-through when not collecting
                 steering_command_us = steering_input_pw
                 self.action(steering_command_us)
-                self.print_mode2_status(iteration, obs, None, None, iteration * dt)
+                self.print_mode2_status(iteration, obs, None, iteration * dt)
         
         elif self.drive_mode == 3:
             # Linear regression inference mode (using pretrained model)
@@ -514,7 +519,7 @@ class vehicle:
             
             steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
             self.action(steering_command_us)
-            self.print_mode1_status(iteration, obs, heading_error, steering_command_us)
+            self.print_mode4_status(iteration, obs, heading_error, steering_command_us)
         
         self.previous_steering_input = steering_input_pw
     

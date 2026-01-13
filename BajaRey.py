@@ -5,14 +5,13 @@ import Vehicle
 #Set input pins
 throttle_pin = 23
 steering_pin = 24
-modeswitch_pin = 27
 servo_pin = 18
 
 #initiatlize vehicle object
-BajaRey = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin, modeswitch_pin)  # PWM pins: throttle=23, steering=24, servo output=18, Mode switch=27
+BajaRey = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
 
-# Change this to switch modes, Mode 2 to collect data and mode 4 to run linear model inference
-DRIVE_MODE = 3  
+# Change this to switch modes, Mode 1 for pass through, Mode 2 to collect data and mode 3 to run linear model inference
+DRIVE_MODE = 1    
 BajaRey.set_drive_mode(DRIVE_MODE)
 
 # Initialize control loop parameters
