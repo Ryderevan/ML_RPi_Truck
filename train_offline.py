@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
 Offline Training Script for Linear Regression Model
-Converts demonstration data into a trained linear steering model.
-
-Usage:
-    python train_offline.py
+Trains linear steering model.
 
 This script:
 1. Loads demonstration data from demonstrations.npz
@@ -125,68 +122,6 @@ class RegressionModel:
         print(f"✓ Model saved to {filename}")
 
 
-def visualize_data_distribution(states, actions):
-    """Visualize the distribution of states and actions.
-    
-    Args:
-        states: array of states
-        actions: array of actions
-    """
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle('Data Distribution', fontsize=16, fontweight='bold')
-    
-    # Heading Error distribution
-    axes[0, 0].hist(states[:, 0], bins=50, alpha=0.7, edgecolor='black', color='blue')
-    axes[0, 0].set_xlabel('Heading Error (radians)')
-    axes[0, 0].set_ylabel('Frequency')
-    axes[0, 0].set_title('Heading Error Distribution')
-    axes[0, 0].grid(True, alpha=0.3)
-    
-    # Error_dot distribution
-    axes[0, 1].hist(states[:, 1], bins=50, alpha=0.7, edgecolor='black', color='orange')
-    axes[0, 1].set_xlabel('Error Rate (rad/s)')
-    axes[0, 1].set_ylabel('Frequency')
-    axes[0, 1].set_title('Heading Error Rate Distribution')
-    axes[0, 1].grid(True, alpha=0.3)
-    
-    # Action distribution
-    axes[1, 0].hist(actions, bins=50, alpha=0.7, edgecolor='black', color='green')
-    axes[1, 0].set_xlabel('Steering Command (µs)')
-    axes[1, 0].set_ylabel('Frequency')
-    axes[1, 0].set_title('Steering Action Distribution')
-    axes[1, 0].grid(True, alpha=0.3)
-    
-    # Summary stats
-    axes[1, 1].axis('off')
-    stats_text = (
-        f"Summary Statistics\n"
-        f"{'─' * 30}\n"
-        f"Samples: {len(states)}\n\n"
-        f"Heading Error:\n"
-        f"  Min: {states[:, 0].min():.4f}\n"
-        f"  Max: {states[:, 0].max():.4f}\n"
-        f"  Mean: {states[:, 0].mean():.4f}\n"
-        f"  Std: {states[:, 0].std():.4f}\n\n"
-        f"Error Rate:\n"
-        f"  Min: {states[:, 1].min():.4f}\n"
-        f"  Max: {states[:, 1].max():.4f}\n"
-        f"  Mean: {states[:, 1].mean():.4f}\n"
-        f"  Std: {states[:, 1].std():.4f}\n\n"
-        f"Steering Command:\n"
-        f"  Min: {actions.min():.0f} µs\n"
-        f"  Max: {actions.max():.0f} µs\n"
-        f"  Mean: {actions.mean():.0f} µs\n"
-        f"  Std: {actions.std():.0f} µs"
-    )
-    axes[1, 1].text(0.1, 0.5, stats_text, fontsize=10, verticalalignment='center',
-                    family='monospace', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-    
-    plt.tight_layout()
-    plt.savefig('data_distribution.png', dpi=150, bbox_inches='tight')
-    print("✓ Saved data distribution plot to 'data_distribution.png'")
-    plt.show()
-
-
 def visualize_model_fit(states, actions, predictions):
     """Visualize model fit and performance.
     
@@ -295,23 +230,19 @@ def main():
         print("\n✗ Failed to load demonstration data!")
         sys.exit(1)
     
-    # Step 2: Visualize data
-    print("\nStep 2: Visualizing data distribution...")
-    visualize_data_distribution(states, actions)
-    
-    # Step 3: Create and train model
-    print("\nStep 3: Creating and training linear regression model...")
+    # Step 2: Create and train model
+    print("\nStep 2: Creating and training linear regression model...")
     model = RegressionModel(state_dim=2)
     predictions = model.fit(states, actions)
     
-    # Step 4: Visualize model fit
-    print("\nStep 4: Visualizing model fit...")
+    # Step 3: Visualize model fit
+    print("\nStep 3: Visualizing model fit...")
     visualize_model_fit(states, actions, predictions)
     
-    # Step 5: Print summary
+    # Step 4: Print summary
     print_summary(states, actions, predictions)
     
-    # Step 6: Save model
+    # Step 5: Save model
     print("\nStep 5: Saving trained model...")
     model.save('linear_model.pkl')
     
@@ -319,10 +250,8 @@ def main():
     print("\n" + "="*60)
     print("DEPLOYMENT INSTRUCTIONS")
     print("="*60)
-    print("\n1. Transfer model to Raspberry Pi:")
-    print("   scp linear_model.pkl user@rpi_ip:path/to/ML_RPi_Truck/")
-    print("\n2. In Vehicle.py, set drive_mode to 3 for inference")
-    print("\n3. Run BajaRey.py and observe the model's performance!")
+    print("\n1. In Vehicle.py, set drive_mode to 3 for inference")
+    print("\n2. Run BajaRey.py and observe the model's performance!")
     print("\n" + "="*60)
 
 

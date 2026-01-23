@@ -14,7 +14,8 @@ class vehicle:
         self.timestamp = 0 
         self.throttle_input_pulse_width = 0  # Pin 23: throttle input (microseconds)
         self.steering_input_pulse_width = 0  # Pin 24: steering input (microseconds)
-        self.prev_heading_error = 0.0  # Track previous error for convergence reward
+        self.prev_heading_error = 0.0  # Track previous error for convergence
+        self.wait_counter = 0  # Counter for wait period after steering is released
         
         # Lock for protecting reads/writes to shared state updated by threads
         self._lock = threading.Lock()
@@ -389,8 +390,8 @@ class vehicle:
         current_steering_error = steering_input_pw - self.servo_neutral
         previous_steering_error = self.previous_steering_input - self.servo_neutral
         
-        # Skip heading resets in mode 2 (data collection) to maintain target heading throughout
-        if self.drive_mode != 2:
+        # Skip heading resets in mode 2 (data collection) and mode 4 (PID with wait) to maintain target heading throughout
+        if self.drive_mode != 2 and self.drive_mode != 4:
             # Check if steering returned to neutral (was active, now neutral)
             if abs(previous_steering_error) >= self.steering_deadband_us and abs(current_steering_error) < self.steering_deadband_us:
                 self.integral_error = 0.0
@@ -508,16 +509,35 @@ class vehicle:
             self.action(steering_command_us)
         
         elif self.drive_mode == 4:
-            # PID mode
+            # PID mode with wait period after steering is released
             theta = obs[0]
             heading_error = theta - self.target_theta
             while heading_error > 180:
                 heading_error -= 360
             while heading_error < -180:
                 heading_error += 360
-            self.integral_error += heading_error * dt
             
-            steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
+            # Check if steering is released (within deadband)
+            if abs(current_steering_error) < self.steering_deadband_us:
+                # Steering is released, increment wait counter
+                self.wait_counter += 1
+                
+                # At the 1 second mark (50 steps), reset target heading and reset integral error
+                if self.wait_counter == 50:
+                    self.reset_target_heading()
+                    self.integral_error = 0.0
+            else:
+                # Steering is active, reset wait counter
+                self.wait_counter = 0
+            
+            # Only apply PID control if we've waited 50 steps (1 second at 50 Hz) after release
+            if self.wait_counter >= 50:
+                self.integral_error += heading_error * dt
+                steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
+            else:
+                # While waiting, use pass-through steering
+                steering_command_us = steering_input_pw
+            
             self.action(steering_command_us)
             self.print_mode4_status(iteration, obs, heading_error, steering_command_us)
         
