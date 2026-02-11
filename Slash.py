@@ -8,11 +8,11 @@ steering_pin = 24
 servo_pin = 18
 
 #initiatlize vehicle object
-BajaRey = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
+Slash = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
 
 # Change this to switch modes, Mode 1 for pass through, Mode 2 to collect data and mode 3 to run linear model inference
 DRIVE_MODE = 1    
-BajaRey.set_drive_mode(DRIVE_MODE)
+Slash.set_drive_mode(DRIVE_MODE)
 
 # Initialize control loop parameters
 loop_rate = 50.0  # Hz
@@ -23,7 +23,7 @@ i = 0
 try:
     while True:
         # Execute one control step  
-        BajaRey.step(i, dt)
+        Slash.step(i, dt)
         
         # Increment iteration counter
         i += 1
@@ -32,4 +32,4 @@ try:
 
 #Break loop if Ctrl+C is pressed
 except KeyboardInterrupt:
-    BajaRey.shutdown()
+    Slash.shutdown()

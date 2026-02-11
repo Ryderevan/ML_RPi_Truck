@@ -40,8 +40,8 @@ class vehicle:
         
         # Control loop state tracking
         self.integral_error = 0.0  # PID integral term
-        self.previous_steering_input = 1600.0  # Track steering input changes
-        self.servo_neutral = 1600.0  # Servo centerpoint (adjust if servo is misaligned; default 1500)
+        self.previous_steering_input = 1475.0  # Track steering input changes
+        self.servo_neutral = 1475.0  # Servo centerpoint (adjust if servo is misaligned; default 1500)
         self.steering_deadband_us = 50.0  # +/- deadband around servo centerpoint
         self.brake_threshold = -50.0  # us below neutral for brake detection
         
@@ -187,7 +187,7 @@ class vehicle:
         else:
             print(f"_write_servo_pulsewidth: pigpio not connected")
     
-    def PID_action(self, obs, target_theta, integral_error, Kp=10, Kd=1, Ki=0, debug=False):
+    def PID_action(self, obs, target_theta, integral_error, Kp=14, Kd=1, Ki=0, debug=False):
         """PID steering controller based on gyro heading feedback.
         
         When steering input is centered (within deadband), use the vehicle's theta (heading error)
@@ -246,11 +246,9 @@ class vehicle:
             # Total steering command offset from neutral
             steering_command_offset = p_term + d_term + i_term
             
-            # Clamp to reasonable range (e.g., +/- 500 us from neutral)
-            steering_command_offset = max(-500.0, min(500.0, steering_command_offset))
-            
-            # Final servo command
-            steering_command_us = servo_neutral + steering_command_offset
+            # Final servo command (clamped to absolute servo limits 1000-2000 us)
+            # This handles servos with mechanical offsets where center is not 1500 us
+            steering_command_us = max(1000.0, min(2000.0, servo_neutral + steering_command_offset))
             
             if debug:
                 print(f"Heading Hold: theta={theta:.2f}°, target={target_theta:.2f}°, error={heading_error:.2f}°, rate={theta_dot:.2f}°/s, "
@@ -437,7 +435,7 @@ class vehicle:
                     self.run_counter += 1
             
             if self.data_collection_active:
-                # Use human steering input directly (no PID)
+                # Use human steering input directly
                 steering_command_us = steering_input_pw
                 
                 # Calculate heading error for state logging
@@ -450,8 +448,8 @@ class vehicle:
                 
                 self.action(steering_command_us)
                 
-                # State is [heading_error, heading_error_dot] not absolute values
-                state = np.array([heading_error, obs[1]])  # error and error_dot (thetaprime)
+                # State is [heading_error, heading_error_dot] 
+                state = np.array([heading_error, obs[1]]) 
                 action = steering_command_us
                 self.log_transition(state, action)
                 self.print_mode2_status(iteration, obs, steering_command_us, iteration * dt)
@@ -522,16 +520,16 @@ class vehicle:
                 # Steering is released, increment wait counter
                 self.wait_counter += 1
                 
-                # At the 1 second mark (50 steps), reset target heading and reset integral error
-                if self.wait_counter == 50:
+                # At 10 steps, reset target heading and reset integral error. Let vehicle stabilize before applying PID control
+                if self.wait_counter == 10:
                     self.reset_target_heading()
                     self.integral_error = 0.0
             else:
                 # Steering is active, reset wait counter
                 self.wait_counter = 0
             
-            # Only apply PID control if we've waited 50 steps (1 second at 50 Hz) after release
-            if self.wait_counter >= 50:
+            # Only apply PID control if we've waited 10 steps after release
+            if self.wait_counter >= 10:
                 self.integral_error += heading_error * dt
                 steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
             else:
