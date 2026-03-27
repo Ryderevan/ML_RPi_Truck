@@ -14,6 +14,11 @@ Slash = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
 DRIVE_MODE = 1    
 Slash.set_drive_mode(DRIVE_MODE)
 
+#Set PID parameters, these can be tuned for better performance
+Slash.Kp = 14
+Slash.Kd = 1.5
+Slash.Ki = .5
+
 # Initialize control loop parameters
 loop_rate = 50.0  # Hz
 dt = 1.0 / loop_rate  # seconds per iteration

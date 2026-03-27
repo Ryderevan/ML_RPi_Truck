@@ -20,8 +20,13 @@ class vehicle:
         # Lock for protecting reads/writes to shared state updated by threads
         self._lock = threading.Lock()
         
-    #Verbosity for PWM monitoring
+        #Verbosity for PWM monitoring
         self._pwm_verbose = False
+
+        # PID control parameters (tuned experimentally)
+        self.Kp = 14.0  # Proportional gain (steering response to heading error)
+        self.Kd = 1.0   # Derivative gain (steering response to heading rate)
+        self.Ki = 0.0   # Integral gain (steering response to accumulated error)
 
         # pigpio connection (single instance for all pins)
         self._pi = None
@@ -131,7 +136,7 @@ class vehicle:
         self._attitude_monitor_thread.start()
     
     def set_drive_mode(self, mode):
-        """Set drive mode (1=pass-through, 2=data collection, 3=linear inference, 4=PID)"""
+        """Set drive mode (1=pass-through, 2=data collection for regression model, 3=linear inference, 4=PID)"""
         self.drive_mode = mode
         print(f"Drive mode set to {mode}")
         self.print_mode_info(mode)
@@ -187,12 +192,13 @@ class vehicle:
         else:
             print(f"_write_servo_pulsewidth: pigpio not connected")
     
-    def PID_action(self, obs, target_theta, integral_error, Kp=14, Kd=1, Ki=0, debug=False):
+    def PID_action(self, obs, target_theta, integral_error, Kp=None, Kd=None, Ki=None, debug=False):
         """PID steering controller based on gyro heading feedback.
         
         When steering input is centered (within deadband), use the vehicle's theta (heading error)
         as the control error. The PID controller outputs a steering command to stabilize the heading.
         
+
         Args:
             obs: observation array [theta, thetaprime, steering_input_pulse_width, throttle_input_pulse_width]
                 - theta: vehicle yaw angle (degrees)
@@ -201,9 +207,9 @@ class vehicle:
                 - throttle_input_pulse_width: receiver throttle input (us)
             target_theta: target heading setpoint (degrees) for PID control
             integral_error: accumulated error over time (degrees * seconds)
-            Kp: proportional gain (default: 12)
-            Kd: derivative gain (default: 1.5)
-            Ki: integral gain (default: 0)
+            Kp: proportional gain (default: self.Kp)
+            Kd: derivative gain (default: self.Kd)
+            Ki: integral gain (default: self.Ki)
             debug: if True, print debug information
         
         Returns:
@@ -212,6 +218,10 @@ class vehicle:
                 Left: < 1500 us, Right: > 1500 us
         """
         
+        Kp = self.Kp
+        Kd = self.Kd
+        Ki = self.Ki
+
         theta = obs[0]  # vehicle heading angle (normalized in daemon)
         theta_dot = obs[1]  # vehicle heading rate (derivative of error)
         steering_input_pw = obs[2]  # receiver steering input
