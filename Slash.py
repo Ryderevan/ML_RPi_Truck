@@ -11,13 +11,13 @@ servo_pin = 18
 Slash = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
 
 # Change this to switch modes, 1 = pass-through, 2 = collect data, 3 = linear model inference, 4 = PID control
-DRIVE_MODE = 1    
+DRIVE_MODE = 4    
 Slash.set_drive_mode(DRIVE_MODE)
 
 #Set PID parameters, these can be tuned for better performance
 Slash.Kp = 14
-Slash.Kd = 1.5
-Slash.Ki = .5
+Slash.Kd = 1
+Slash.Ki = 3
 
 # Initialize control loop parameters
 loop_rate = 50.0  # Hz

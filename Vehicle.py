@@ -540,6 +540,9 @@ class vehicle:
             
             # Only apply PID control if we've waited 10 steps after release
             if self.wait_counter >= 10:
+                # Zero integrator on error zero-crossing to prevent integrator windup
+                #if self.prev_heading_error * heading_error < 0:
+                #    self.integral_error = 0.0
                 self.integral_error += heading_error * dt
                 steering_command_us = self.PID_action(obs, self.target_theta, self.integral_error)
             else:
@@ -548,6 +551,7 @@ class vehicle:
             
             self.action(steering_command_us)
             self.print_mode4_status(iteration, obs, heading_error, steering_command_us)
+            self.prev_heading_error = heading_error
         
         self.previous_steering_input = steering_input_pw
     
