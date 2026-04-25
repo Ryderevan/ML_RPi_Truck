@@ -10,7 +10,7 @@ servo_pin = 18
 #initiatlize vehicle object
 Slash = Vehicle.vehicle(throttle_pin, steering_pin, servo_pin)
 
-# Change this to switch modes, Mode 1 for pass through, Mode 2 to collect data and mode 3 to run linear model inference
+# Mode 1: pass through, Mode 2: collect data, Mode 3: linear model inference, Mode 4: PID control
 DRIVE_MODE = 1    
 Slash.set_drive_mode(DRIVE_MODE)
 
