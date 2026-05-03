@@ -16,13 +16,13 @@
 	],
 	"targets": [
 		{
-			"name": "slashgreen",
+			"name": "rpi",
 			"type": "sftp",
-			"host": "10.99.210.204",
+			"host": "10.84.37.130",
 			"port": 22,
-			"user": "slashgreen",
-			"password": "slashgreen",
-			"dir": "/home/slashgreen/Desktop/Truck",
+			"user": "bajarey2",
+			"password": "bajarey2",
+			"dir": "/home/bajarey2/Desktop/Truck",
 			"baseDir": "/",
 			"privateKey": null,
 			"passphrase": null

@@ -24,9 +24,13 @@ class vehicle:
         self._pwm_verbose = False
 
         # PID control parameters (tuned experimentally)
-        self.Kp = 14.0  # Proportional gain (steering response to heading error)
-        self.Kd = 1.0   # Derivative gain (steering response to heading rate)
+        self.Kp = 0.0  # Proportional gain (steering response to heading error)
+        self.Kd = 0.0   # Derivative gain (steering response to heading rate)
         self.Ki = 0.0   # Integral gain (steering response to accumulated error)
+        self.Kf = 0.0   # feedforward gain (steering response to throttle input)
+        
+        self.feedforward = True
+
 
         # pigpio connection (single instance for all pins)
         self._pi = None
@@ -192,7 +196,11 @@ class vehicle:
         else:
             print(f"_write_servo_pulsewidth: pigpio not connected")
     
-    def PID_action(self, obs, target_theta, integral_error, Kp=None, Kd=None, Ki=None, debug=False):
+    def set_feedforward(self, feedforward):
+        self.feedforward = feedforward
+
+
+    def PID_action(self, obs, target_theta, integral_error, Kp=None, Kd=None, Ki=None, Kf = None, debug=False):
         """PID steering controller based on gyro heading feedback.
         
         When steering input is centered (within deadband), use the vehicle's theta (heading error)
@@ -221,11 +229,13 @@ class vehicle:
         Kp = self.Kp
         Kd = self.Kd
         Ki = self.Ki
+        Kf = self.Kf
 
         theta = obs[0]  # vehicle heading angle (normalized in daemon)
         theta_dot = obs[1]  # vehicle heading rate (derivative of error)
-        steering_input_pw = obs[2]  # receiver steering input
-        
+        steering_input_pw = obs[2] # receiver steering input
+        throttle_input_pw = obs[3] # receiver throttle input
+
         # Heading error: difference between current heading and target
         # Wraparound needed: even with normalized angles, difference can exceed ±180
         heading_error = theta - target_theta
@@ -253,8 +263,15 @@ class vehicle:
             d_term = Kd * theta_dot
             i_term = Ki * integral_error
             
+            if self.feedforward and throttle_input_pw > 1500: #Apply feedforward if turned on and throttle is > idle in the forward direction only
+                f_term = Kf * (throttle_input_pw - 1500)
+
+                # Total steering command offset from neutral
+                steering_command_offset = p_term + d_term + i_term + f_term
+
+            else:
             # Total steering command offset from neutral
-            steering_command_offset = p_term + d_term + i_term
+                steering_command_offset = p_term + d_term + i_term
             
             # Final servo command (clamped to absolute servo limits 1000-2000 us)
             # This handles servos with mechanical offsets where center is not 1500 us
@@ -262,7 +279,7 @@ class vehicle:
             
             if debug:
                 print(f"Heading Hold: theta={theta:.2f}°, target={target_theta:.2f}°, error={heading_error:.2f}°, rate={theta_dot:.2f}°/s, "
-                      f"PID({p_term:.0f}, {d_term:.0f}, {i_term:.0f}) -> {steering_command_us:.0f}us")
+                    f"PID({p_term:.0f}, {d_term:.0f}, {i_term:.0f}) -> {steering_command_us:.0f}us")
         else:
             # Manual steering active: pass through receiver input
             steering_command_us = steering_input_pw
